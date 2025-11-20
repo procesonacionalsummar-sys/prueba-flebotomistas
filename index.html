@@ -112,9 +112,10 @@
 
     <div id="feedback" class="feedback"></div>
 
-    <button id="next-button" class="btn-primary hidden" onclick="nextScenario()">
-      Siguiente misión ▶
-    </button>
+    <button id="next-button" onclick="nextScenario()" style="display:none !important; visibility:hidden !important;">
+  Siguiente misión ▶
+</button>
+
   </div>
 
   <!-- Resultados finales (vista candidato) -->
@@ -260,7 +261,7 @@
         dimension: "puentes_medicos_negocio",
         title: "Misión 4: Puente con el médico",
         text:
-          "Un médico llega a la sala de extracciones visiblemente molesto porque algunas muestras anteriores llegaron tarde al laboratorio.",
+          "La Coordinadora llega a la sala de extracciones visiblemente molesta porque algunas muestras anteriores llegaron tarde al laboratorio.",
         options: [
           {
             id: "A",
@@ -1009,17 +1010,20 @@
       var fragment = getStoryFragment(scenario, option);
       storyLog.push(fragment);
 
-      var feedbackEl = document.getElementById("feedback");
-      feedbackEl.textContent = option.feedback;
+     var feedbackEl = document.getElementById("feedback");
+feedbackEl.textContent = "";
 
       var optionsContainer = document.getElementById("options-container");
       var buttons = optionsContainer.getElementsByTagName("button");
       for (var i = 0; i < buttons.length; i++) {
         buttons[i].disabled = true;
       }
-
+// Avance automático a la siguiente misión
+setTimeout(function () {
+  nextScenario();
+}, 300);
       var nextButton = document.getElementById("next-button");
-      nextButton.classList.remove("hidden");
+      
     }
 
     function nextScenario() {
@@ -1261,13 +1265,12 @@
         "varias escenas apuntan a dificultades para priorizar, sostener acuerdos o ser consistente con horarios; esto puede traducirse en fallos en la operación diaria."
       );
 
-      // bloque psico
+     // bloque psico
       if (psicoAcc !== null) {
         obs.push(
           "En el bloque de bienestar psicológico y estabilidad laboral (ansiedad, estado de ánimo, autocuidado y abandono), las decisiones consideradas más protectoras se sitúan en torno a " + psicoAcc + "%."
         );
       }
-
       if (riesgoAnsiedad) {
         obs.push(
           "Las respuestas relacionadas con la espera de noticias y la forma de manejar la incertidumbre sugieren un estilo algo más ansioso (rumiación, anticipación o evitación de información). En un contexto asistencial puede traducirse en mayor desgaste mental y dificultad para desconectar al finalizar la jornada."
@@ -1525,14 +1528,44 @@ function construirInformeFinal() {
 
   // OBSERVACIÓN (resumen automático)
   let observacion =
-    `Este resultado es una estimación basada en un juego de decisiones. ` +
-    `La persona acierta en aproximadamente ${porcentaje}%. ` +
-    `Aptitud estimada: ${aptitud}. ` +
-    `AGIL: ${AG.texto}. ` +
-    `CONECTAR: ${CO.texto}. ` +
-    `COMUNICAR: ${CM.texto}. ` +
-    `EJECUTAR: ${EJ.texto}. ` +
-    `PSICO: Respuestas de mayor riesgo: ${psicoInc} de ${psicoTot} (${psicoAcc}% decisiones protectoras).`;
+ 
+  "Este resultado es una estimación basada en un juego de decisiones. No es un diagnóstico psicológico ni reemplaza una evaluación clínica completa, pero sí ofrece una fotografía útil para procesos de selección.\n\n" +
+
+  "En el conjunto de misiones la persona acierta en aproximadamente " + porcentaje + "% de las situaciones planteadas. Se clasifica como " + aptitud + " para este tipo de rol porque aparecen patrones que, si se trasladan a la práctica diaria, podrían influir en la calidad del servicio, el trabajo en equipo o la estabilidad laboral.\n\n" +
+
+  "ÁGIL (" + AG.acc + "%): " +
+  (AG.acc < 55
+    ? "Se observan decisiones de riesgo que sugieren rigidez frente al cambio, tendencia a la queja o improvisaciones arriesgadas cuando el contexto varía. Esto podría dificultar la integración fluida en un entorno dinámico."
+    : "Se observan decisiones que reflejan capacidad de adaptación, flexibilidad y respuesta adecuada ante contextos cambiantes.") +
+  "\n\n" +
+
+  "CONECTAR (" + CO.acc + "%): " +
+  (CO.acc < 55
+    ? "Aparecen decisiones que señalan baja iniciativa para colaborar, compartir información o generar articulación con otras áreas. Esto puede limitar la integración con el equipo y la relación con pacientes y médicos."
+    : "Las decisiones indican apertura para trabajar en equipo, colaborar y conectar con otros actores del servicio.") +
+  "\n\n" +
+
+  "COMUNICAR (" + CM.acc + "%): " +
+  (CM.acc < 55
+    ? "Se encuentran decisiones asociadas a evitar conversaciones difíciles, comunicar de forma muy escueta o comentar inconformidades con terceros en vez de dialogar directamente. Esto puede impactar negativamente el clima laboral y la experiencia del paciente."
+    : "Se observa manejo adecuado de la comunicación, claridad y ajuste del discurso según el contexto.") +
+  "\n\n" +
+
+  "EJECUTAR (" + EJ.acc + "%): " +
+  (EJ.acc < 55
+    ? "Varias decisiones sugieren dificultades para priorizar, sostener compromisos, cumplir acuerdos o mantener consistencia operativa. Esto podría traducirse en fallos cotidianos en la operación."
+    : "Las decisiones reflejan priorización adecuada, constancia y orientación al resultado.") +
+  "\n\n" +
+
+  "EN BIENESTAR PSICOLÓGICO (" + psicoAcc + "% decisiones protectoras): " +
+  (psicoInc >= 3
+    ? "El patrón observado sugiere posibles indicadores de vulnerabilidad emocional. Las respuestas muestran señales relacionadas con anticipación ansiosa, rumiación, dificultad para manejar la incertidumbre y tendencia a postergar el autocuidado. En escenarios asistenciales esto puede traducirse en desgaste, agotamiento emocional, dificultad para desconectar al finalizar la jornada y mayor probabilidad de síntomas ansioso-depresivos si se acumula tensión. También se observa riesgo moderado de abandono impulsivo del puesto ante situaciones de presión prolongada."
+    : "Las respuestas indican un estilo emocionalmente estable, con manejo adecuado de la incertidumbre, estrategias saludables de autocuidado y bajo riesgo de síntomas ansioso-depresivos. También se observa una baja probabilidad de abandono impulsivo, con tendencia al diálogo y búsqueda de soluciones antes de considerar renunciar.") +
+  "\n\n" +
+
+  "Aspectos a reforzar: Ágil (" + AG.acc + "%), Conectar (" + CO.acc + "%), Comunicar (" + CM.acc + "%), Ejecutar (" + EJ.acc + "%).\n\n" +
+
+  "Recomendación: integrar esta información con entrevista, referencias y criterios clínicos cuando sea necesario. Este juego muestra tendencias, pero no reemplaza por sí solo una decisión final.";
 
   return {
     id_participante: participantId,
