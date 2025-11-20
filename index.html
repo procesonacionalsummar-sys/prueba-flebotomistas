@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Simulador de Misiones - Flebotomista SYNLAB</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 20px auto;
+      line-height: 1.5;
+      background: #f5f7fb;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #d0d4e4;
+      border-radius: 12px;
+      padding: 18px;
+      margin-top: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    .options button {
+      display: block;
+      width: 100%;
+      margin: 6px 0;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #b5b9cf;
+      cursor: pointer;
+      text-align: left;
+      font-size: 0.95rem;
+      background: #f8f9ff;
+    }
+    .options button:hover:not(:disabled) {
+      background: #ecefff;
+    }
+    .options button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .feedback {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+    }
+    .hidden {
+      display: none;
+    }
+    .btn-primary {
+      margin-top: 10px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      background: #4c6fff;
+      color: white;
+      font-weight: bold;
+    }
+    .btn-primary:hover {
+      background: #3b57cc;
+    }
+    .btn-secondary {
+      margin-top: 10px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #e0e4ff;
+      color: #333;
+      font-size: 0.8rem;
+    }
+    .btn-secondary:hover {
+      background: #c6cdfc;
+    }
+    #progress-text {
+      font-size: 0.9rem;
+      color: #555;
+      margin-top: 4px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <h1>Misiones SYNLAB – Rol Flebotomista 🩸</h1>
+  <p style="text-align:center; max-width: 650px; margin: 0 auto;">
+    Entrarás en varias misiones cortas. Solo marca lo que se parece más a ti.
+    No verás notas ni resultados, solo un cierre de historia.
+  </p>
+
+  <!-- Pantalla inicial -->
+  <div id="start-screen" class="card">
+    <h2>Antes de empezar</h2>
+    <label for="participant-id">ID del jugador (código, no nombre real):</label><br />
+    <input type="text" id="participant-id" placeholder="Ej: P001" />
+    <br /><br />
+    <button class="btn-primary" onclick="startSimulation()">Comenzar misiones</button>
+    <p style="font-size: 0.9em; color: #555; margin-top:8px;">
+      Usa códigos anónimos (P001, P002, etc.) para mantener la confidencialidad.
+    </p>
+  </div>
+
+  <!-- Contenedor del juego -->
+  <div id="scenario-card" class="card hidden">
+    <h2 id="scenario-title">Misión</h2>
+    <p id="progress-text"></p>
+    <p id="scenario-text"></p>
+
+    <div id="options-container" class="options"></div>
+
+    <div id="feedback" class="feedback"></div>
+
+    <button id="next-button" class="btn-primary hidden" onclick="nextScenario()">
+      Siguiente misión ▶
+    </button>
+  </div>
+
+  <!-- Resultados finales (vista candidato) -->
+  <div id="results-card" class="card hidden">
+    <h2>Misiones completadas</h2>
+    <p id="summary"></p>
+    <p style="font-size:0.9rem; color:#555;">
+      Gracias por participar. Puedes avisar a la persona responsable del proceso que ya terminaste.
+    </p>
+
+    <!-- Botón pequeño para acceso restringido -->
+    <button id="admin-access-btn" class="btn-secondary" onclick="requestAdminAccess()">
+      Acceso para equipo de selección
+    </button>
+
+    <!-- Sección de descarga solo visible tras contraseña correcta -->
+    <div id="download-section" class="hidden" style="margin-top:10px;">
+      <p style="font-size:0.8rem; color:#555;">
+        Acceso autorizado. Descarga el archivo de resultados para análisis interno.
+      </p>
+      <button class="btn-primary" onclick="downloadCSV()">
+        Descargar resultados (.csv)
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // =========================
+    // 1. Escenarios del juego
+    // =========================
+    // Categorías:
+    //  - AGIL, CONECTAR, COMUNICAR, EJECUTAR (modelo ACCE)
+    //  - PSICO (bloque ansiedad / depresión / abandono)
+    var scenarios = [
+      // -------- A: ÁGIL --------
+      {
+        id: "AGIL1_SistemaCaido",
+        category: "AGIL",
+        dimension: "escucha_cliente_adapta",
+        title: "Misión 1: Sistema caprichoso",
+        text:
+          "Acabas de tomar asiento en la sala de extracciones. El sistema se cae justo cuando entra un paciente mirando el reloj: dice que tiene muy poco tiempo antes de irse a trabajar.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Le explicas que sin sistema no puedes hacer nada y que tendrá que volver otro día.",
+            correct: false,
+            feedback:
+              "La respuesta es muy rígida: protege protocolos, pero no explora alternativas seguras para ayudar al paciente."
+          },
+          {
+            id: "B",
+            label:
+              "Le explicas la situación, revisas qué puedes adelantar (preparar material, verificar identidad) y pides apoyo a un compañero para que en cuanto vuelva el sistema se complete rápido.",
+            correct: true,
+            feedback:
+              "Combina cuidado por el paciente con adaptación al contratiempo y trabajo en equipo."
+          },
+          {
+            id: "C",
+            label:
+              "Decides usar papeles y notas improvisadas para avanzar igual, con la idea de subir todo al sistema después.",
+            correct: false,
+            feedback:
+              "La intención de ayudar es alta, pero el riesgo de errores en trazabilidad aumenta."
+          }
+        ]
+      },
+      {
+        id: "AGIL2_VenasDificiles",
+        category: "AGIL",
+        dimension: "riesgos_calculados",
+        title: "Misión 2: Venas que se esconden",
+        text:
+          "Llega una paciente que comenta que siempre ha tenido venas difíciles y malas experiencias en extracciones anteriores. La sala está llena y hay algo de presión por el tiempo.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Eliges la técnica que conoces como menos molesta, explicas lo que vas a hacer y te tomas un momento para que se sienta tranquila, aunque tardes un poco más.",
+            correct: true,
+            feedback:
+              "Equilibras confort del paciente, calidad técnica y ritmo de trabajo."
+          },
+          {
+            id: "B",
+            label:
+              "Usas una técnica más rápida, aunque algo más invasiva, para que la sala no se retrase demasiado.",
+            correct: false,
+            feedback:
+              "La prioridad va al tiempo por encima de la experiencia de la paciente."
+          },
+          {
+            id: "C",
+            label:
+              "Prefieres no tocar el caso y pides de inmediato que otro compañero se encargue sin valorar tú primero la situación.",
+            correct: false,
+            feedback:
+              "La prudencia es válida, pero aquí aparece una retirada demasiado rápida de la responsabilidad."
+          }
+        ]
+      },
+      {
+        id: "AGIL3_CambioTurno",
+        category: "AGIL",
+        dimension: "adaptacion_cambio",
+        title: "Misión 3: Cambio de horario inesperado",
+        text:
+          "Te informan que, por unos días, se modificará la forma de organizar los turnos de extracción para probar una nueva dinámica de atención.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Te tomas un tiempo para entender el nuevo esquema, haces preguntas y pruebas cómo funciona en tu día a día.",
+            correct: true,
+            feedback:
+              "Aceptas el cambio y te involucras en entenderlo antes de juzgarlo."
+          },
+          {
+            id: "B",
+            label:
+              "Te quejas con algunos compañeros y, cuando puedes, sigues organizándote como antes.",
+            correct: false,
+            feedback:
+              "Se crea un doble sistema entre lo nuevo y lo viejo, lo que puede generar confusión."
+          },
+          {
+            id: "C",
+            label:
+              "Dices que ese cambio no te sirve y que tú seguirás con tu rutina habitual.",
+            correct: false,
+            feedback:
+              "La respuesta es muy rígida y se distancia de la adaptación que requiere el entorno."
+          }
+        ]
+      },
+
+      // -------- C: CONECTAR --------
+      {
+        id: "CON1_MedicoMolesto",
+        category: "CONECTAR",
+        dimension: "puentes_medicos_negocio",
+        title: "Misión 4: Puente con el médico",
+        text:
+          "Un médico llega a la sala de extracciones visiblemente molesto porque algunas muestras anteriores llegaron tarde al laboratorio.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Respondes de forma breve y evitas la conversación para que no se escale el conflicto.",
+            correct: false,
+            feedback:
+              "Se evita la tensión, pero también se pierde la oportunidad de mejorar la coordinación."
+          },
+          {
+            id: "B",
+            label:
+              "Escuchas lo que comenta, explicas con calma qué ocurrió y propones juntos una forma de organizar mejor el flujo de muestras.",
+            correct: true,
+            feedback:
+              "Construyes puentes entre áreas, integrando su preocupación con opciones de mejora."
+          },
+          {
+            id: "C",
+            label:
+              "Le dices que eso no es asunto tuyo y que lo hable con otra área.",
+            correct: false,
+            feedback:
+              "La responsabilidad se desplaza del todo fuera, y la relación entre servicios se enfría."
+          }
+        ]
+      },
+      {
+        id: "CON2_ApoyoCompanero",
+        category: "CONECTAR",
+        dimension: "colaboracion_equipo",
+        title: "Misión 5: Compañero en apuros",
+        text:
+          "Un compañero nuevo está teniendo dificultades para organizar bien el etiquetado y se le nota algo tenso.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Le dices que con el tiempo se acostumbrará, pero sigues concentrado en tus propias muestras.",
+            correct: false,
+            feedback:
+              "No hay mala intención, pero tampoco se traduce en apoyo concreto."
+          },
+          {
+            id: "B",
+            label:
+              "Te acercas, le muestras un modo práctico de organizarse que a ti te funciona y revisan juntos algunas muestras.",
+            correct: true,
+            feedback:
+              "Compartes experiencia y conocimiento, facilitando su aprendizaje."
+          },
+          {
+            id: "C",
+            label:
+              "Llamas al supervisor para que sea él quien lo acompañe en todo el proceso.",
+            correct: false,
+            feedback:
+              "Puede ser útil, pero también se pierde una oportunidad de vínculo directo con el compañero."
+          }
+        ]
+      },
+      {
+        id: "CON3_Sedes",
+        category: "CONECTAR",
+        dimension: "trabajo_transversal",
+        title: "Misión 6: Trabajo entre sedes",
+        text:
+          "Te proponen participar en una pequeña iniciativa para unificar buenas prácticas de extracción entre varias sedes.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Aceptas participar, compartes lo que haces bien y también escuchas las ideas de otras sedes.",
+            correct: true,
+            feedback:
+              "Hay apertura para dar y recibir aprendizajes a nivel transversal."
+          },
+          {
+            id: "B",
+            label:
+              "Prefieres centrarte solo en tu sede porque ya tienes suficiente trabajo.",
+            correct: false,
+            feedback:
+              "Cuidas tu carga, pero pierdes impacto en la red más amplia."
+          },
+          {
+            id: "C",
+            label:
+              "Aceptas solo para estar informado, pero decides no intervenir mucho en las reuniones.",
+            correct: false,
+            feedback:
+              "Te mantienes al margen y limitas tu contribución a la conexión entre equipos."
+          }
+        ]
+      },
+
+      // -------- C: COMUNICAR --------
+      {
+        id: "COM1_RepetirMuestra",
+        category: "COMUNICAR",
+        dimension: "comunicacion_paciente",
+        title: "Misión 7: Muestra repetida",
+        text:
+          "Necesitas repetir una muestra a un paciente porque la anterior no fue válida. El paciente te pregunta, algo molesto, por qué tiene que pasar por lo mismo otra vez.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Le dices que son órdenes del sistema y que no sabes más.",
+            correct: false,
+            feedback:
+              "La comunicación queda muy corta y aumenta la sensación de desconfianza."
+          },
+          {
+            id: "B",
+            label:
+              "Le explicas en lenguaje sencillo que repetir la muestra es importante para asegurar un resultado confiable y que es algo que a veces ocurre.",
+            correct: true,
+            feedback:
+              "Se cuida la información y la tranquilidad del paciente al mismo tiempo."
+          },
+          {
+            id: "C",
+            label:
+              "Le das una explicación larga llena de detalles técnicos para que entienda el proceso.",
+            correct: false,
+            feedback:
+              "La intención es buena, pero el exceso de tecnicismo puede generar más confusión."
+          }
+        ]
+      },
+      {
+        id: "COM2_RetroCoordinadora",
+        category: "COMUNICAR",
+        dimension: "feedback_equipo",
+        title: "Misión 8: Conversación con la coordinadora",
+        text:
+          "Tu coordinadora te pregunta en una reunión breve cómo te estás sintiendo en el equipo y si ves algo a mejorar.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Respondes que todo está perfecto, aunque no sea del todo cierto, para no entrar en temas incómodos.",
+            correct: false,
+            feedback:
+              "Se evita el conflicto, pero también se pierde una oportunidad de mejora y de confianza mutua."
+          },
+          {
+            id: "B",
+            label:
+              "Comentas lo que valoras del equipo y señalas de forma respetuosa algún punto que crees que podría mejorarse.",
+            correct: true,
+            feedback:
+              "Aporta información útil y cuida la relación con la coordinación."
+          },
+          {
+            id: "C",
+            label:
+              "Aprovechas para enumerar varios problemas que te molestan sin plantear alternativas.",
+            correct: false,
+            feedback:
+              "La comunicación se centra en la queja y puede tensar el clima si no se acompaña de propuestas."
+          }
+        ]
+      },
+      {
+        id: "COM3_CompaneraApagada",
+        category: "COMUNICAR",
+        dimension: "empatia_escucha",
+        title: "Misión 9: Compañera apagada",
+        text:
+          "Notas que una compañera que normalmente es participativa está más callada, distraída y comete pequeños descuidos.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Ignoras la situación porque piensas que son cosas personales y no quieres involucrarte.",
+            correct: false,
+            feedback:
+              "Respetar el espacio ajeno es importante, pero también lo es ofrecer apoyo mínimo cuando hay señales claras."
+          },
+          {
+            id: "B",
+            label:
+              "Buscas un momento tranquilo y le preguntas cómo se siente, ofreciéndote a escuchar si quiere hablar.",
+            correct: true,
+            feedback:
+              "Se combina respeto por su espacio con una puerta abierta a la conversación y apoyo."
+          },
+          {
+            id: "C",
+            label:
+              "Comentas con otros compañeros que la ves rara, para ver si alguien más sabe qué le pasa.",
+            correct: false,
+            feedback:
+              "La preocupación es genuina, pero se transforma más en comentario entre terceros que en apoyo directo."
+          }
+        ]
+      },
+
+      // -------- E: EJECUTAR --------
+      {
+        id: "EJE1_Prioridades",
+        category: "EJECUTAR",
+        dimension: "metas_priori_resultados",
+        title: "Misión 10: Tetris de tareas",
+        text:
+          "Tienes varios pacientes en espera y, al mismo tiempo, te piden preparar una caja de muestras que debe salir en el próximo envío.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Te dejas llevar por lo primero que te piden y vas resolviendo en el orden en que van llegando las cosas.",
+            correct: false,
+            feedback:
+              "Se avanza, pero sin una prioridad clara; es fácil perder de vista lo más urgente."
+          },
+          {
+            id: "B",
+            label:
+              "Revisas qué pacientes y tareas son más críticas, organizas un orden lógico y explicas brevemente cómo te vas a organizar si alguien pregunta.",
+            correct: true,
+            feedback:
+              "Se combinan resultados, planificación y comunicación clara de prioridades."
+          },
+          {
+            id: "C",
+            label:
+              "Dejas en pausa a los pacientes para dedicarte primero a la caja urgente y evitar problemas con el supervisor.",
+            correct: false,
+            feedback:
+              "Se resuelve la urgencia del supervisor, pero el impacto en la experiencia de quienes esperan es alto."
+          }
+        ]
+      },
+      {
+        id: "EJE2_CompromisoEntrega",
+        category: "EJECUTAR",
+        dimension: "cumple_promesas",
+        title: "Misión 11: Pequeño informe pendiente",
+        text:
+          "Prometiste entregar al final del turno un pequeño registro de incidencias, pero el día se alarga y estás cansado/a.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Decides dejarlo para el día siguiente sin avisar, porque ya no te da la energía.",
+            correct: false,
+            feedback:
+              "El compromiso se pospone sin comunicación, lo que puede generar confusión o pérdida de información."
+          },
+          {
+            id: "B",
+            label:
+              "Avisas que necesitas unos minutos más para completarlo y lo entregas antes de irte.",
+            correct: true,
+            feedback:
+              "Mantienes la promesa y gestionas el tiempo de forma clara."
+          },
+          {
+            id: "C",
+            label:
+              "Lo entregas rápido, aunque incompleto, para cumplir con la hora acordada.",
+            correct: false,
+            feedback:
+              "Se cumple el plazo, pero la calidad de la información puede verse afectada."
+          }
+        ]
+      },
+      {
+        id: "EJE3_AsistenciaPuntualidad",
+        category: "EJECUTAR",
+        dimension: "fiabilidad_basica",
+        title: "Misión 12: Mañanas complicadas",
+        text:
+          "Durante algunas semanas has tenido dificultades con el transporte y llegas justo o un poco tarde a varios turnos de la mañana.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Asumes que son cosas que pasan y procuras llegar a la hora cuando se pueda.",
+            correct: false,
+            feedback:
+              "El impacto en el equipo y en los pacientes queda poco considerado."
+          },
+          {
+            id: "B",
+            label:
+              "Buscas alternativas (otros horarios, rutas, organización) y, si ves que va a seguir ocurriendo, hablas con tu coordinador para encontrar una solución.",
+            correct: true,
+            feedback:
+              "Se reconoce el problema y se busca activamente una salida antes de que crezca."
+          },
+          {
+            id: "C",
+            label:
+              "No comentas nada, pero pides con más frecuencia cambios de turno para evitar las mañanas.",
+            correct: false,
+            feedback:
+              "Se intenta esquivar el problema más que enfrentarlo de manera abierta."
+          }
+        ]
+      },
+
+      // -------- BLOQUE PSICOLÓGICO (ANSIEDAD / DEPRESIÓN / ABANDONO) --------
+      {
+        id: "PSICO1_AnsiedadAnticipatoria",
+        category: "PSICO",
+        dimension: "ansiedad_anticipatoria",
+        title: "Misión 13: Espera larga",
+        text:
+          "Estás esperando una noticia importante (resultado, respuesta de alguien, decisión). Faltan varios días y la situación no se resolverá antes.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Piensas en el tema muchas veces al día, revisas el teléfono y repasas posibles escenarios, aunque intentes hacer otras cosas.",
+            correct: false,
+            feedback:
+              "La espera ocupa bastante espacio mental y cuesta dejarla del todo al margen."
+          },
+          {
+            id: "B",
+            label:
+              "Te preguntas qué está en tu mano, organizas eso y luego intentas seguir con tu rutina, aunque el tema vuelva a tu cabeza a ratos.",
+            correct: true,
+            feedback:
+              "La preocupación existe, pero buscas un equilibrio entre control y rutina."
+          },
+          {
+            id: "C",
+            label:
+              "Evitas abrir correos o mensajes relacionados hasta el último momento para no sentirte mal antes de tiempo.",
+            correct: false,
+            feedback:
+              "La información se posterga, pero la tensión queda en segundo plano latente."
+          }
+        ]
+      },
+      {
+        id: "PSICO2_EstadoAnimo",
+        category: "PSICO",
+        dimension: "estado_animo_bajo",
+        title: "Misión 14: Semanas grises",
+        text:
+          "Imagina que durante varias semanas te notas con menos energía y menos ganas de hacer cosas que normalmente disfrutas.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Piensas que es una racha sin importancia, no lo comentas con nadie y sigues igual esperando que pase.",
+            correct: false,
+            feedback:
+              "El malestar se normaliza sin tener demasiado espacio para ser revisado."
+          },
+          {
+            id: "B",
+            label:
+              "Empiezas por hacer pequeños ajustes (sueño, actividades, organización) y, si ves que se mantiene, considerarías hablarlo con alguien o pedir ayuda profesional.",
+            correct: true,
+            feedback:
+              "Das un lugar al malestar sin dramatizarlo, pero tampoco lo ignoras."
+          },
+          {
+            id: "C",
+            label:
+              "Te enfadas contigo mismo/a por sentirte así y te exiges rendir igual o más que antes.",
+            correct: false,
+            feedback:
+              "La respuesta va más hacia la autoexigencia que hacia el cuidado."
+          }
+        ]
+      },
+      {
+        id: "PSICO3_SuenoCansancio",
+        category: "PSICO",
+        dimension: "autocuidado_basico",
+        title: "Misión 15: Cansancio acumulado",
+        text:
+          "Durante varias semanas duermes peor y te levantas con sensación de no haber descansado. Empiezas a notarlo en tu concentración.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Aumentas el consumo de café u otros estimulantes y tratas de mantener el ritmo sin tocar mucho tu rutina.",
+            correct: false,
+            feedback:
+              "El cuerpo recibe más empuje, pero el descanso de fondo no mejora."
+          },
+          {
+            id: "B",
+            label:
+              "Intentas ajustar horarios, hábitos de sueño y, si persiste, considerarías consultar con un profesional.",
+            correct: true,
+            feedback:
+              "El cansancio se toma como algo a revisar y no solo como algo que ‘hay que aguantar’."
+          },
+          {
+            id: "C",
+            label:
+              "Reduces actividades poco a poco y pasas más tiempo en casa, sin un plan claro de qué hacer con ese cansancio.",
+            correct: false,
+            feedback:
+              "La vida se va estrechando alrededor del cansancio."
+          }
+        ]
+      },
+      {
+        id: "PSICO4_AbandonoPuesto",
+        category: "PSICO",
+        dimension: "abandono_puesto",
+        title: "Misión 16: Ruido en el trabajo",
+        text:
+          "En un trabajo nuevo, durante varias semanas hay roces, cambios de turno inesperados y decisiones con las que no estás de acuerdo.",
+        options: [
+          {
+            id: "A",
+            label:
+              "Empiezas a llegar tarde o faltar de vez en cuando mientras vas mirando otras opciones.",
+            correct: false,
+            feedback:
+              "La salida se va dando de forma silenciosa a través del compromiso con la asistencia."
+          },
+          {
+            id: "B",
+            label:
+              "Buscas un momento para hablar con quien coordina, aclarar lo que se puede ajustar y, según eso, decides si quedarte o no.",
+            correct: true,
+            feedback:
+              "Antes de cortar el vínculo, exploras si hay margen de cambio."
+          },
+          {
+            id: "C",
+            label:
+              "Cuando sientes que algo ya no encaja, prefieres renunciar de forma rápida sin extender demasiado el proceso.",
+            correct: false,
+            feedback:
+              "La salida tiende a ser más brusca cuando sientes que la situación te supera."
+          }
+        ]
+      },
+      {
+        id: "PSICO5_AutoimagenCompromiso",
+        category: "PSICO",
+        dimension: "autoinforme_compromiso",
+        title: "Misión 17: Cómo te describes en compromisos",
+        text:
+          "Pensando en los últimos años, cuando te comprometes con proyectos o actividades de cierta duración, ¿qué se parece más a ti?",
+        options: [
+          {
+            id: "A",
+            label:
+              "Casi siempre termino todo lo que empiezo y es muy raro que abandone algo, aunque no tenga mucho sentido seguir.",
+            correct: false,
+            feedback:
+              "Te describes con un nivel muy alto de cumplimiento, casi sin margen para soltar algo a tiempo."
+          },
+          {
+            id: "B",
+            label:
+              "Suelo terminar lo que empiezo, aunque alguna vez he decidido dejar algo cuando ya no aportaba o las condiciones cambiaron mucho.",
+            correct: true,
+            feedback:
+              "Hay una autoimagen de continuidad, pero con algo de flexibilidad."
+          },
+          {
+            id: "C",
+            label:
+              "Arranco muchas cosas con ganas, pero me cuesta llegar al final si la motivación baja.",
+            correct: false,
+            feedback:
+              "Reconoces más dificultad para sostener proyectos en el tiempo."
+          }
+        ]
+      },
+      {
+        id: "PSICO6_ApoyoSocial",
+        category: "PSICO",
+        dimension: "apoyo_social_buscado",
+        title: "Misión 18: Manejar el estrés",
+        text:
+          "Cuando te sientes sobrepasado/a por estrés laboral o personal, ¿qué suele ocurrir más seguido?",
+        options: [
+          {
+            id: "A",
+            label:
+              "Procuro que nadie lo note, no suelo contarlo y prefiero aguantar hasta que se pase.",
+            correct: false,
+            feedback:
+              "El malestar se maneja principalmente hacia dentro y en soledad."
+          },
+          {
+            id: "B",
+            label:
+              "Busco a alguien de confianza para comentar cómo me siento y, si es necesario, pedir ayuda o apoyo.",
+            correct: true,
+            feedback:
+              "El estrés se comparte y se reparte con la red de apoyo."
+          },
+          {
+            id: "C",
+            label:
+              "Acumulo bastante y cuando exploto o me desbordo, ahí recién comento algo.",
+            correct: false,
+            feedback:
+              "El malestar se acumula hasta encontrar una salida brusca."
+          }
+        ]
+      }
+    ];
+
+    // =========================
+    // 2. Estado del simulador
+    // =========================
+    var currentScenarioIndex = 0;
+    var responses = [];
+    var currentQuestionStartTime = null;
+    var participantId = "";
+    var storyLog = [];
+
+    var scenarioQueue = [];
+    var scenarioMap = {};
+    for (var i = 0; i < scenarios.length; i++) {
+      scenarioMap[scenarios[i].id] = scenarios[i];
+    }
+
+    function scheduleScenario(id) {
+      if (scenarioMap[id] && scenarioQueue.indexOf(id) === -1) {
+        scenarioQueue.push(id);
+      }
+    }
+
+    // =========================
+    // 3. Historia interna (para HR)
+    // =========================
+    function getStoryFragment(scenario, option) {
+      var id = scenario.id;
+      var op = option.id;
+
+      // AGIL
+      if (id === "AGIL1_SistemaCaido") {
+        if (op === "A") return "Ante la caída del sistema respondió de forma muy rígida, sin explorar alternativas seguras para el paciente.";
+        if (op === "B") return "Con el sistema caído combinó calma con adaptación y apoyo del equipo para ayudar al paciente.";
+        if (op === "C") return "Ante la caída del sistema eligió improvisar con papeles, aumentando el riesgo en trazabilidad.";
+      }
+      if (id === "AGIL2_VenasDificiles") {
+        if (op === "A") return "Ante una paciente con venas difíciles priorizó la comodidad y la explicación, aun con presión de tiempo.";
+        if (op === "B") return "Con venas difíciles priorizó la rapidez aunque la técnica fuera más incómoda.";
+        if (op === "C") return "Ante un caso complejo se retiró pronto y delegó sin valorar primero la situación.";
+      }
+      if (id === "AGIL3_CambioTurno") {
+        if (op === "A") return "Frente a un cambio de turnos eligió entender y probar el nuevo esquema antes de juzgarlo.";
+        if (op === "B") return "Frente a un cambio de turnos combinó queja con mantener su forma antigua cuando podía.";
+        if (op === "C") return "Rechazó abiertamente el cambio en la organización de turnos.";
+      }
+
+      // CONECTAR
+      if (id === "CON1_MedicoMolesto") {
+        if (op === "A") return "Ante la queja de un médico optó por una respuesta mínima para evitar la conversación.";
+        if (op === "B") return "Ante la queja de un médico escuchó, explicó lo ocurrido y propuso mejoras conjuntas.";
+        if (op === "C") return "Ante la queja de un médico trasladó toda la responsabilidad a otra área.";
+      }
+      if (id === "CON2_ApoyoCompanero") {
+        if (op === "A") return "Con un compañero en dificultad prefirió no involucrarse más allá de un comentario tranquilizador.";
+        if (op === "B") return "Con un compañero en dificultad ofreció apoyo directo y compartió una forma de organizarse mejor.";
+        if (op === "C") return "Ante un compañero en dificultad derivó todo el acompañamiento al supervisor.";
+      }
+      if (id === "CON3_Sedes") {
+        if (op === "A") return "Aceptó participar activamente en una iniciativa entre sedes para compartir buenas prácticas.";
+        if (op === "B") return "Rechazó involucrarse en iniciativas entre sedes por carga de trabajo.";
+        if (op === "C") return "Participó de forma muy pasiva en las reuniones entre sedes.";
+      }
+
+      // COMUNICAR
+      if (id === "COM1_RepetirMuestra") {
+        if (op === "A") return "Ante la repetición de una muestra ofreció una explicación muy limitada al paciente.";
+        if (op === "B") return "Ante la repetición de una muestra explicó de forma sencilla y calmada la necesidad del procedimiento.";
+        if (op === "C") return "Ante la repetición de una muestra dio una explicación excesivamente técnica.";
+      }
+      if (id === "COM2_RetroCoordinadora") {
+        if (op === "A") return "En una conversación con la coordinación evitó comentar aspectos a mejorar para no incomodar.";
+        if (op === "B") return "En una conversación con la coordinación combinó reconocimiento y sugerencias de mejora.";
+        if (op === "C") return "En una conversación con la coordinación se centró sobre todo en la queja.";
+      }
+      if (id === "COM3_CompaneraApagada") {
+        if (op === "A") return "Ante señales de posible malestar en una compañera prefirió no intervenir.";
+        if (op === "B") return "Ante señales de malestar en una compañera abrió un espacio cuidadoso para escucharla.";
+        if (op === "C") return "Ante señales de malestar en una compañera habló de ello con terceros más que con ella misma.";
+      }
+
+      // EJECUTAR
+      if (id === "EJE1_Prioridades") {
+        if (op === "A") return "Con varias tareas simultáneas se dejó llevar por el orden en que iban llegando las demandas.";
+        if (op === "B") return "Con varias tareas simultáneas definió prioridades y las comunicó de forma clara.";
+        if (op === "C") return "Con varias tareas simultáneas priorizó la urgencia del supervisor por encima de los pacientes en espera.";
+      }
+      if (id === "EJE2_CompromisoEntrega") {
+        if (op === "A") return "Un informe comprometido para final de turno quedó pospuesto sin avisar.";
+        if (op === "B") return "Un informe comprometido para final de turno se entregó tras avisar que necesitaba unos minutos más.";
+        if (op === "C") return "Un informe comprometido se entregó incompleto para cumplir solo el horario.";
+      }
+      if (id === "EJE3_AsistenciaPuntualidad") {
+        if (op === "A") return "Ante varios retrasos por transporte dio poca prioridad a buscar alternativas o comentarlo.";
+        if (op === "B") return "Ante varios retrasos por transporte buscó soluciones y consideró hablarlo abiertamente.";
+        if (op === "C") return "Ante varios retrasos por transporte intentó reorganizarse pidiendo cambios sin abordar el fondo del problema.";
+      }
+
+      // PSICO
+      if (id === "PSICO1_AnsiedadAnticipatoria") {
+        if (op === "A") return "En una espera larga la mayor parte del tiempo se centró en rumiación y anticipación.";
+        if (op === "B") return "En una espera larga trató de centrarse en lo controlable y mantener rutina.";
+        if (op === "C") return "En una espera larga evitó revisar información hasta el final para no angustiarse.";
+      }
+      if (id === "PSICO2_EstadoAnimo") {
+        if (op === "A") return "Ante semanas grises tendió a normalizar el malestar sin cambios ni conversación.";
+        if (op === "B") return "Ante semanas grises consideró ajustar hábitos y abrir la puerta a pedir ayuda si persiste.";
+        if (op === "C") return "Ante semanas grises reaccionó con autoexigencia y autocrítica.";
+      }
+      if (id === "PSICO3_SuenoCansancio") {
+        if (op === "A") return "Frente a cansancio mantenido aumentó el uso de estimulantes sin revisar el descanso.";
+        if (op === "B") return "Frente a cansancio mantenido revisó horarios y valoró consultar si no mejoraba.";
+        if (op === "C") return "Frente a cansancio mantenido redujo actividades sin una estrategia clara.";
+      }
+      if (id === "PSICO4_AbandonoPuesto") {
+        if (op === "A") return "En conflictos laborales tendió al ausentismo mientras buscaba otras opciones.";
+        if (op === "B") return "En conflictos laborales buscó conversación y análisis antes de decidir irse.";
+        if (op === "C") return "En conflictos laborales prefirió salidas rápidas y directas.";
+      }
+      if (id === "PSICO5_AutoimagenCompromiso") {
+        if (op === "A") return "Se definió como casi incapaz de abandonar un compromiso incluso si deja de tener sentido.";
+        if (op === "B") return "Se definió como alguien que suele terminar lo que empieza con cierto margen de flexibilidad.";
+        if (op === "C") return "Se definió como alguien con dificultad para llegar al final de lo que inicia.";
+      }
+      if (id === "PSICO6_ApoyoSocial") {
+        if (op === "A") return "Declaró preferir sostener el estrés sin que se note ni pedir apoyo.";
+        if (op === "B") return "Declaró buscar apoyo en personas de confianza cuando el estrés aumenta.";
+        if (op === "C") return "Declaró compartir el malestar principalmente en momentos de desborde.";
+      }
+
+      return "Tomó una decisión que aporta matices sobre su forma de actuar en contexto de trabajo y bienestar.";
+    }
+
+    // =========================
+    // 4. Utilidades
+    // =========================
+    function shuffleArray(arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = a[i];
+        a[i] = a[j];
+        a[j] = tmp;
+      }
+      return a;
+    }
+
+    // =========================
+    // 5. Flujo principal
+    // =========================
+    function startSimulation() {
+      var input = document.getElementById("participant-id");
+      var value = input.value.replace(/^\s+|\s+$/g, "");
+      if (!value) {
+        alert("Por favor ingresa un ID de jugador (ej. P001).");
+        return;
+      }
+
+      participantId = value;
+
+      document.getElementById("start-screen").classList.add("hidden");
+      document.getElementById("scenario-card").classList.remove("hidden");
+
+      currentScenarioIndex = 0;
+      responses = [];
+      storyLog = [];
+      scenarioQueue = [];
+
+      for (var i = 0; i < scenarios.length; i++) {
+        scheduleScenario(scenarios[i].id);
+      }
+
+      loadScenario();
+    }
+
+    function loadScenario() {
+      if (currentScenarioIndex >= scenarioQueue.length) {
+        endSimulation();
+        return;
+      }
+
+      var scenarioId = scenarioQueue[currentScenarioIndex];
+      var scenario = scenarioMap[scenarioId];
+
+      var titleEl = document.getElementById("scenario-title");
+      var textEl = document.getElementById("scenario-text");
+      var optionsContainer = document.getElementById("options-container");
+      var feedbackEl = document.getElementById("feedback");
+      var nextButton = document.getElementById("next-button");
+      var progressEl = document.getElementById("progress-text");
+
+      titleEl.textContent = scenario.title;
+      textEl.textContent = scenario.text;
+      progressEl.textContent = "Misión " + (currentScenarioIndex + 1) + " de " + scenarioQueue.length;
+
+      optionsContainer.innerHTML = "";
+      feedbackEl.textContent = "";
+      nextButton.classList.add("hidden");
+
+      var shuffledOptions = shuffleArray(scenario.options);
+
+      for (var i = 0; i < shuffledOptions.length; i++) {
+        (function(opt) {
+          var btn = document.createElement("button");
+          btn.textContent = "▶ " + opt.label;
+          btn.onclick = function() { handleOptionClick(opt); };
+          optionsContainer.appendChild(btn);
+        })(shuffledOptions[i]);
+      }
+
+      currentQuestionStartTime = new Date().getTime();
+    }
+
+    function handleOptionClick(option) {
+      var endTime = new Date().getTime();
+      var responseTimeMs = endTime - currentQuestionStartTime;
+
+      var scenarioId = scenarioQueue[currentScenarioIndex];
+      var scenario = scenarioMap[scenarioId];
+
+      var isCorrect = option.correct === true;
+
+      var record = {
+        participant_id: participantId,
+        date_time: new Date().toISOString(),
+        mission_number: currentScenarioIndex + 1,
+        scenario_id: scenario.id,
+        scenario_title: scenario.title,
+        category: scenario.category,
+        dimension: scenario.dimension,
+        choice: option.id,
+        correct: isCorrect,
+        response_time_ms: responseTimeMs
+      };
+      responses.push(record);
+
+      var fragment = getStoryFragment(scenario, option);
+      storyLog.push(fragment);
+
+      var feedbackEl = document.getElementById("feedback");
+      feedbackEl.textContent = option.feedback;
+
+      var optionsContainer = document.getElementById("options-container");
+      var buttons = optionsContainer.getElementsByTagName("button");
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].disabled = true;
+      }
+
+      var nextButton = document.getElementById("next-button");
+      nextButton.classList.remove("hidden");
+    }
+
+    function nextScenario() {
+      currentScenarioIndex++;
+      if (currentScenarioIndex < scenarioQueue.length) {
+        loadScenario();
+      } else {
+        endSimulation();
+      }
+    }
+
+    function endSimulation() {
+  document.getElementById("scenario-card").classList.add("hidden");
+  document.getElementById("results-card").classList.remove("hidden");
+
+  var summaryEl = document.getElementById("summary");
+  summaryEl.innerHTML =
+    "<p>Gracias por completar las misiones.</p>" +
+    "<p>Puedes avisar a la persona responsable del proceso que ya terminaste.</p>";
+
+  enviarResultados();
+}
+
+    // =========================
+    // 6. Acceso restringido (contraseña SYNLAB)
+    // =========================
+    function requestAdminAccess() {
+      var pwd = prompt("Introduce la contraseña de acceso para el equipo de selección:");
+      if (pwd === null) return;
+      if (pwd === "SYNLAB") {
+        document.getElementById("download-section").classList.remove("hidden");
+        alert("Acceso autorizado.");
+      } else {
+        alert("Contraseña incorrecta.");
+      }
+    }
+
+    // =========================
+    // 7. Exportar CSV con ACCE + PSICO + observación clara
+    // =========================
+    function downloadCSV() {
+      if (responses.length === 0) {
+        alert("No hay respuestas registradas.");
+        return;
+      }
+
+      var header = [
+        "ID_participante",
+        "FechaHora_ISO",
+        "Numero_mision",
+        "Escenario_nombre",
+        "Categoria",
+        "Dimension",
+        "Opcion_elegida",
+        "Respuesta_adecuada",
+        "Tiempo_respuesta_segundos"
+      ];
+
+      var rows = [];
+      var total = responses.length;
+      var correctCount = 0;
+
+      // ACCE
+      var compStats = {
+        AGIL: {total:0, incorrect:0},
+        CONECTAR: {total:0, incorrect:0},
+        COMUNICAR: {total:0, incorrect:0},
+        EJECUTAR: {total:0, incorrect:0}
+      };
+
+      // PSICO
+      var psicoTotal = 0;
+      var psicoIncorrect = 0;
+      var riesgoAnsiedad = false;
+      var riesgoDepresion = false;
+      var riesgoAbandono = false;
+
+      for (var i = 0; i < responses.length; i++) {
+        var r = responses[i];
+
+        var esAdecuada = r.correct ? "SI" : "NO";
+        var tiempoSeg = Math.round((r.response_time_ms / 100)) / 10;
+
+        rows.push([
+          r.participant_id,
+          r.date_time,
+          r.mission_number,
+          r.scenario_title,
+          r.category,
+          r.dimension,
+          r.choice,
+          esAdecuada,
+          tiempoSeg
+        ]);
+
+        if (r.correct) correctCount++;
+
+        if (compStats[r.category]) {
+          compStats[r.category].total++;
+          if (!r.correct) compStats[r.category].incorrect++;
+        }
+
+        if (r.category === "PSICO") {
+          psicoTotal++;
+          if (!r.correct) psicoIncorrect++;
+
+          if (!r.correct && r.dimension === "ansiedad_anticipatoria") {
+            riesgoAnsiedad = true;
+          }
+          if (!r.correct && (r.dimension === "estado_animo_bajo" || r.dimension === "autocuidado_basico")) {
+            riesgoDepresion = true;
+          }
+          if (!r.correct && r.dimension === "abandono_puesto") {
+            riesgoAbandono = true;
+          }
+        }
+      }
+
+      var incorrectCount = total - correctCount;
+      var globalAcc = total > 0 ? Math.round((correctCount / total) * 1000) / 10 : 0;
+
+      function calcAcc(cat) {
+        var s = compStats[cat];
+        if (!s || s.total === 0) return null;
+        return Math.round(((s.total - s.incorrect) / s.total) * 1000) / 10;
+      }
+
+      var agilAcc = calcAcc("AGIL");
+      var conectarAcc = calcAcc("CONECTAR");
+      var comunicarAcc = calcAcc("COMUNICAR");
+      var ejecutarAcc = calcAcc("EJECUTAR");
+
+      var psicoAcc = psicoTotal > 0
+        ? Math.round(((psicoTotal - psicoIncorrect) / psicoTotal) * 1000) / 10
+        : null;
+
+      var minComp = 100;
+      ["AGIL","CONECTAR","COMUNICAR","EJECUTAR"].forEach(function(c){
+        var v = calcAcc(c);
+        if (v !== null && v < minComp) minComp = v;
+      });
+      if (minComp === 100 && total === 0) minComp = 0;
+
+      // APTITUD global
+      var aptitud = "";
+      if (globalAcc >= 75 && minComp >= 60 && (!riesgoAbandono)) {
+        aptitud = "APTO";
+      } else if (globalAcc >= 55 && minComp >= 45) {
+        aptitud = "EN OBSERVACION";
+      } else {
+        aptitud = "NO APTO (estimado)";
+      }
+
+      // FORTALEZAS / A DESARROLLAR ACCE
+      var fortalezas = [];
+      var desarrollo = [];
+
+      function checkComp(nombreVisible, catAcc) {
+        if (catAcc === null) return;
+        if (catAcc >= 70) {
+          fortalezas.push(nombreVisible + " (" + catAcc + "%)");
+        } else if (catAcc < 60) {
+          desarrollo.push(nombreVisible + " (" + catAcc + "%)");
+        }
+      }
+
+      checkComp("Ágil", agilAcc);
+      checkComp("Conectar", conectarAcc);
+      checkComp("Comunicar", comunicarAcc);
+      checkComp("Ejecutar", ejecutarAcc);
+
+      // OBSERVACIÓN detallada en lenguaje llano
+      var obs = [];
+
+      obs.push(
+        "Este resultado es una estimación basada en un juego de decisiones. No es un diagnóstico psicológico ni reemplaza una evaluación clínica completa, pero sí ofrece una fotografía útil para procesos de selección."
+      );
+
+      obs.push(
+        "En el conjunto de misiones la persona acierta en aproximadamente " + globalAcc + "% de las situaciones planteadas."
+      );
+
+      // explicación de aptitud
+      if (aptitud === "APTO") {
+        obs.push(
+          "Se considera APTO porque, en general, sus decisiones se alinean con lo esperado para el rol: cuida al paciente, coopera con otros, se comunica de forma respetuosa y organiza su trabajo con cierto criterio de prioridad y cumplimiento."
+        );
+      } else if (aptitud === "EN OBSERVACION") {
+        obs.push(
+          "Se clasifica EN OBSERVACIÓN porque combina decisiones adecuadas con otras que dejan dudas sobre cómo responde bajo presión, cómo maneja la frustración o cómo sostiene sus compromisos. No es un perfil descartable, pero sí requiere una entrevista más profunda y seguimiento cercano en periodo de prueba."
+        );
+      } else {
+        obs.push(
+          "Se clasifica como NO APTO (estimado) para este tipo de rol porque aparecen varias decisiones que, si se trasladan a la práctica diaria, podrían generar dificultades importantes en servicio al paciente, trabajo en equipo o cumplimiento básico de horarios y acuerdos."
+        );
+      }
+
+      // explicación ACCE una por una
+      function describeComp(nombre, acc, textoAlta, textoMedia, textoBaja) {
+        if (acc === null) return;
+        if (acc >= 70) {
+          obs.push("En la competencia " + nombre + " (aprox. " + acc + "% de decisiones adecuadas), se observa " + textoAlta);
+        } else if (acc >= 55) {
+          obs.push("En la competencia " + nombre + " (aprox. " + acc + "%), el funcionamiento es intermedio: " + textoMedia);
+        } else {
+          obs.push("En la competencia " + nombre + " (por debajo del 55%, aprox. " + acc + "%), aparecen varias decisiones de riesgo: " + textoBaja);
+        }
+      }
+
+      describeComp(
+        "Ágil",
+        agilAcc,
+        "capacidad razonable para adaptarse a cambios, escuchar la situación y buscar alternativas sin perder de vista la seguridad.",
+        "a veces se adapta bien y otras se queda en la queja o la rigidez; conviene acompañar su proceso de ajuste a cambios de turnos o sistemas.",
+        "tendencia a responder con rigidez, queja o improvisaciones arriesgadas cuando el contexto cambia; podría costarle integrarse a un entorno dinámico."
+      );
+
+      describeComp(
+        "Conectar",
+        conectarAcc,
+        "una buena disposición para colaborar, apoyar a compañeros y construir puentes con otros servicios cuando hay problemas.",
+        "muestra algunos gestos de colaboración, pero en otros momentos se distancia o deja los temas en manos de otros; el trabajo transversal podría requerir guía.",
+        "poca iniciativa para ayudar, compartir prácticas o dialogar con otras áreas ante conflictos; esto puede limitar la integración con el resto del equipo y con médicos/negocio."
+      );
+
+      describeComp(
+        "Comunicar",
+        comunicarAcc,
+        "una comunicación generalmente clara y respetuosa, con capacidad de explicar situaciones a pacientes y de abrir conversaciones con el equipo.",
+        "algunas respuestas muestran empatía y claridad, pero otras se quedan cortas o se centran en la queja; importante acompañar habilidades de feedback y escucha.",
+        "tendencia a evitar conversaciones difíciles, a dar explicaciones muy escuetas o a comentar problemas más con terceros que con los implicados; puede impactar en clima y en experiencia de pacientes."
+      );
+
+      describeComp(
+        "Ejecutar",
+        ejecutarAcc,
+        "sentido aceptable de prioridad y compromiso: organiza tareas, intenta cumplir lo que promete y busca soluciones cuando algo se complica.",
+        "mezcla decisiones ordenadas con otras donde se pierde la prioridad o se posponen compromisos; conviene reforzar hábitos de planificación y seguimiento.",
+        "varias escenas apuntan a dificultades para priorizar, sostener acuerdos o ser consistente con horarios; esto puede traducirse en fallos en la operación diaria."
+      );
+
+      // bloque psico
+      if (psicoAcc !== null) {
+        obs.push(
+          "En el bloque de bienestar psicológico y estabilidad laboral (ansiedad, estado de ánimo, autocuidado y abandono), las decisiones consideradas más protectoras se sitúan en torno a " + psicoAcc + "%."
+        );
+      }
+
+      if (riesgoAnsiedad) {
+        obs.push(
+          "Las respuestas relacionadas con la espera de noticias y la forma de manejar la incertidumbre sugieren un estilo algo más ansioso (rumiación, anticipación o evitación de información). En un contexto asistencial puede traducirse en mayor desgaste mental y dificultad para desconectar al finalizar la jornada."
+        );
+      } else {
+        obs.push(
+          "No se observan indicadores claros de un afrontamiento muy ansioso ante la incertidumbre en las escenas planteadas; aun así, el contexto real siempre puede amplificar rasgos previos."
+        );
+      }
+
+      if (riesgoDepresion) {
+        obs.push(
+          "En escenas de estado de ánimo y cansancio aparecen decisiones que normalizan malestares prolongados, se apoyan en la autoexigencia o postergan el autocuidado. Esto aumenta el riesgo de síntomas ansioso-depresivos o de caer en un estilo de 'aguantar' más de lo saludable antes de pedir ayuda."
+        );
+      } else {
+        obs.push(
+          "En cuanto a estado de ánimo y autocuidado básico, las respuestas tienden a reconocer el cansancio y a contemplar ajustes de rutina o búsqueda de ayuda, lo que funciona como factor protector frente a ansiedad y depresión."
+        );
+      }
+
+      if (riesgoAbandono) {
+        obs.push(
+          "En las escenas relacionadas con conflictos laborales y desajustes en el entorno, se observan opciones que facilitan el ausentismo, la renuncia rápida o el corte brusco del vínculo cuando hay dificultades. Esto incrementa el riesgo de deserción laboral temprana si el contexto no acompaña o si se dan varios roces seguidos."
+        );
+      } else {
+        obs.push(
+          "En la parte de estabilidad en el puesto, aparecen decisiones que dan lugar primero al diálogo y a la búsqueda de ajustes antes de pensar en irse, lo que reduce el riesgo de abandono impulsivo del puesto."
+        );
+      }
+
+      if (fortalezas.length > 0) {
+        obs.push(
+          "Fortalezas a destacar (según el juego): " + fortalezas.join("; ") + "."
+        );
+      }
+
+      if (desarrollo.length > 0) {
+        obs.push(
+          "Aspectos a reforzar: " + desarrollo.join("; ") + ". Son temas concretos que pueden trabajarse en la inducción, el acompañamiento inicial y la retroalimentación continua."
+        );
+      }
+
+      obs.push(
+        "Recomendación de uso: integrar esta información con la entrevista, referencias laborales y, cuando sea necesario, valoración clínica formal. El juego ayuda a ver tendencias, pero no define por sí solo la decisión final."
+      );
+
+      obs.push(
+        "Motivo de la etiqueta final: la clasificación APTO / EN OBSERVACIÓN / NO APTO (estimado) se construye a partir del porcentaje global de decisiones adecuadas, el equilibrio entre las competencias ACCE (Ágil, Conectar, Comunicar, Ejecutar) y la presencia o no de indicadores de riesgo psicológico y de abandono."
+      );
+
+      var observacion = obs.join(" ");
+
+      // Filas de resumen
+      var resumenGlobal1 = [
+        "RESUMEN_GLOBAL","","","","","","",
+        "Total_misiones", total, ""
+      ];
+      var resumenGlobal2 = [
+        "RESUMEN_GLOBAL","","","","","","",
+        "Respondio_adecuadamente", correctCount, ""
+      ];
+      var resumenGlobal3 = [
+        "RESUMEN_GLOBAL","","","","","","",
+        "Respondio_con_riesgo", incorrectCount, ""
+      ];
+      var resumenGlobal4 = [
+        "RESUMEN_GLOBAL","","","","","","",
+        "Porcentaje_aciertos", globalAcc + "%", ""
+      ];
+
+      var resumenAgil = [
+        "RESUMEN_ACCE","","","","","","",
+        "AGIL",
+        (agilAcc === null ? "Sin datos" :
+          "Errores: " + compStats.AGIL.incorrect + " de " + compStats.AGIL.total +
+          " (" + agilAcc + "% decisiones adecuadas)"),
+        ""
+      ];
+      var resumenConectar = [
+        "RESUMEN_ACCE","","","","","","",
+        "CONECTAR",
+        (conectarAcc === null ? "Sin datos" :
+          "Errores: " + compStats.CONECTAR.incorrect + " de " + compStats.CONECTAR.total +
+          " (" + conectarAcc + "% decisiones adecuadas)"),
+        ""
+      ];
+      var resumenComunicar = [
+        "RESUMEN_ACCE","","","","","","",
+        "COMUNICAR",
+        (comunicarAcc === null ? "Sin datos" :
+          "Errores: " + compStats.COMUNICAR.incorrect + " de " + compStats.COMUNICAR.total +
+          " (" + comunicarAcc + "% decisiones adecuadas)"),
+        ""
+      ];
+      var resumenEjecutar = [
+        "RESUMEN_ACCE","","","","","","",
+        "EJECUTAR",
+        (ejecutarAcc === null ? "Sin datos" :
+          "Errores: " + compStats.EJECUTAR.incorrect + " de " + compStats.EJECUTAR.total +
+          " (" + ejecutarAcc + "% decisiones adecuadas)"),
+        ""
+      ];
+
+      var resumenPsico = [
+        "RESUMEN_PSICO","","","","","","",
+        "Bloque_psicologico",
+        (psicoAcc === null ? "Sin datos" :
+          "Respuestas de mayor riesgo: " + psicoIncorrect + " de " + psicoTotal +
+          " (" + psicoAcc + "% decisiones protectoras)"),
+        ""
+      ];
+
+      var filaAptitud = [
+        "APTITUD","","","","","","",
+        "Aptitud_estimada", aptitud, ""
+      ];
+
+      var filaObservacion = [
+        "OBSERVACION","","","","","","",
+        "Comentario", observacion, ""
+      ];
+
+      var filaHistoria = [
+        "HISTORIA","","","","","","",
+        "Relato_resumido", storyLog.join(" "), ""
+      ];
+
+      var definicionACCE = [
+        "DEFINICION_ITEM","","","","","","",
+        "ACCE",
+        "Modelo de competencias SYNLAB ACCE nivel 1: Ágil (escucha al cliente, se adapta e innova), Conectar (colabora a través de equipos y construye puentes), Comunicar (explica, escucha y muestra empatía) y Ejecutar (establece metas, cuida resultados y cumple promesas). Las misiones del juego traducen estas competencias en decisiones concretas del día a día de un rol asistencial.",
+        ""
+      ];
+
+      var definicionPSICO = [
+        "DEFINICION_ITEM","","","","","","",
+        "PSICO",
+        "El bloque psicológico explora de forma indirecta estilos de afrontamiento ante ansiedad, estado de ánimo bajo, autocuidado y abandono del puesto. No son escalas clínicas oficiales, pero se inspiran en constructos usados en instrumentos como el GAD-7 (ansiedad), PHQ-9 (depresión) y en criterios de estabilidad laboral.",
+        ""
+      ];
+
+      // FUENTES PSICOLÓGICAS (manteniendo APA y otras)
+      var fuente1 = [
+        "FUENTES_PSICOLOGICAS","","","","","","",
+        "Fuente_1",
+        "American Psychological Association (APA). APA Dictionary of Psychology: conceptos de ansiedad, depresión, afrontamiento y fiabilidad.",
+        ""
+      ];
+      var fuente2 = [
+        "FUENTES_PSICOLOGICAS","","","","","","",
+        "Fuente_2",
+        "Nunnally, J. C., & Bernstein, I. H. (1994). Psychometric Theory. McGraw-Hill.",
+        ""
+      ];
+      var fuente3 = [
+        "FUENTES_PSICOLOGICAS","","","","","","",
+        "Fuente_3",
+        "Spitzer, R. L., Kroenke, K., Williams, J. B. W., & Löwe, B. (2006). GAD-7: medida breve para ansiedad generalizada.",
+        ""
+      ];
+      var fuente4 = [
+        "FUENTES_PSICOLOGICAS","","","","","","",
+        "Fuente_4",
+        "Kroenke, K., Spitzer, R. L., & Williams, J. B. W. (2001). PHQ-9: escala breve de depresión.",
+        ""
+      ];
+      var fuenteNota = [
+        "FUENTES_PSICOLOGICAS","","","","","","",
+        "Nota",
+        "El simulador se inspira en estos marcos (ansiedad, depresión, afrontamiento, estabilidad laboral y competencias) pero NO equivale a estas pruebas ni debe usarse para diagnóstico clínico.",
+        ""
+      ];
+
+      var csvContent = header.join(",") + "\n";
+      for (var m = 0; m < rows.length; m++) {
+        csvContent += rows[m].join(",") + "\n";
+      }
+
+      csvContent += "\n" + resumenGlobal1.join(",") + "\n";
+      csvContent += resumenGlobal2.join(",") + "\n";
+      csvContent += resumenGlobal3.join(",") + "\n";
+      csvContent += resumenGlobal4.join(",") + "\n";
+      csvContent += resumenAgil.join(",") + "\n";
+      csvContent += resumenConectar.join(",") + "\n";
+      csvContent += resumenComunicar.join(",") + "\n";
+      csvContent += resumenEjecutar.join(",") + "\n";
+      csvContent += resumenPsico.join(",") + "\n";
+      csvContent += filaAptitud.join(",") + "\n";
+      csvContent += filaObservacion.join(",") + "\n";
+      csvContent += filaHistoria.join(",") + "\n";
+      csvContent += definicionACCE.join(",") + "\n";
+      csvContent += definicionPSICO.join(",") + "\n";
+      csvContent += fuente1.join(",") + "\n";
+      csvContent += fuente2.join(",") + "\n";
+      csvContent += fuente3.join(",") + "\n";
+      csvContent += fuente4.join(",") + "\n";
+      csvContent += fuenteNota.join(",") + "\n";
+
+      // BOM para que Excel respete acentos
+      csvContent = "\uFEFF" + csvContent;
+
+      var blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement("a");
+      var filename = "resultados_misiones_" + participantId + ".csv";
+
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+// ======================================================================
+//  ENVÍO AUTOMÁTICO A GOOGLE SHEET (AGREGADO EXACTAMENTE COMO LO PEDISTE)
+// ======================================================================
+
+function construirInformeFinal() {
+
+ // Total respuestas
+  let total = responses.length;
+  let correctas = responses.filter(r => r.correct).length;
+  let incorrectas = total - correctas;
+  let porcentaje = total === 0 ? 0 : Math.round((correctas / total) * 1000) / 10;
+
+  // Historia unida
+  let historia = storyLog.join(" ");
+
+  // RESUMEN ACCE
+  function calcDim(cat) {
+    let tot = responses.filter(r => r.category === cat).length;
+    let inc = responses.filter(r => r.category === cat && !r.correct).length;
+    let acc = tot === 0 ? 0 : Math.round(((tot - inc) / tot) * 1000) / 10;
+    return {
+      texto: `Errores: ${inc} de ${tot} (${acc}% decisiones adecuadas)`,
+      acc: acc
+    };
+  }
+
+  let AG = calcDim("AGIL");
+  let CO = calcDim("CONECTAR");
+  let CM = calcDim("COMUNICAR");
+  let EJ = calcDim("EJECUTAR");
+
+  // PSICO
+  let psicoTot = responses.filter(r => r.category === "PSICO").length;
+  let psicoInc = responses.filter(r => r.category === "PSICO" && !r.correct).length;
+  let psicoAcc = psicoTot === 0 ? 0 : Math.round(((psicoTot - psicoInc) / psicoTot) * 1000) / 10;
+
+  // APTITUD
+  let minACCE = Math.min(AG.acc, CO.acc, CM.acc, EJ.acc);
+  let aptitud = "NO APTO (estimado)";
+  if (porcentaje >= 75 && minACCE >= 60) aptitud = "APTO";
+  else if (porcentaje >= 55 && minACCE >= 45) aptitud = "EN OBSERVACION";
+
+  // OBSERVACIÓN (resumen automático)
+  let observacion =
+    `Este resultado es una estimación basada en un juego de decisiones. ` +
+    `La persona acierta en aproximadamente ${porcentaje}%. ` +
+    `Aptitud estimada: ${aptitud}. ` +
+    `AGIL: ${AG.texto}. ` +
+    `CONECTAR: ${CO.texto}. ` +
+    `COMUNICAR: ${CM.texto}. ` +
+    `EJECUTAR: ${EJ.texto}. ` +
+    `PSICO: Respuestas de mayor riesgo: ${psicoInc} de ${psicoTot} (${psicoAcc}% decisiones protectoras).`;
+
+  return {
+    id_participante: participantId,
+    fecha_hora: new Date().toISOString(),
+    resumen_global: `Total: ${total}. Adecuadas: ${correctas}. Riesgo: ${incorrectas}. % aciertos: ${porcentaje}%.`,
+    resumen_acce:
+      `AGIL: ${AG.texto} | ` +
+      `CONECTAR: ${CO.texto} | ` +
+      `COMUNICAR: ${CM.texto} | ` +
+      `EJECUTAR: ${EJ.texto}`,
+    resumen_psico:
+      `Riesgo: ${psicoInc} de ${psicoTot} (${psicoAcc}% decisiones protectoras)`,
+    aptitud: aptitud,
+    observacion: observacion,
+    historia: historia,
+    json_respuestas: responses
+  };
+}
+
+function enviarResultados() {
+  const endpoint =
+    "https://script.google.com/macros/s/AKfycbzLsPAAYmwnX2kohFyNsDYtgFpRuJTQue5AnTfdT680Wmik3kI2zdzi0S50BX3HLWDy0w/exec";
+
+  let informe = construirInformeFinal(); // ← AQUI SE CREA EL INFORME COMPLETO
+
+  fetch(endpoint, {
+    method: "POST",
+    mode: "no-cors",
+    body: JSON.stringify(informe)
+  })
+    .then(() => console.log("✔ Informe enviado al Google Sheet"))
+    .catch(err => console.error("Error:", err));
+}
+  </script>
+</body>
+</html>
